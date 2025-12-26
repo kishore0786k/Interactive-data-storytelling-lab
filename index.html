@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Data Storytelling Lab</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #020617;
+            --bg-elevated: #020617;
+            --panel: #020617;
+            --panel-border: #0f172a;
+            --accent: #22c55e;
+            --accent-soft: rgba(34, 197, 94, 0.14);
+            --accent-strong: #4ade80;
+            --text-main: #e5e7eb;
+            --text-soft: #94a3b8;
+            --text-muted: #64748b;
+            --danger: #f97373;
+            --card-shadow: 0 0 0 1px #0f172a, 0 24px 60px rgba(15, 23, 42, 0.9);
+            --radius: 10px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "JetBrains Mono", Consolas, Menlo, Monaco, "Courier New", monospace;
+            margin: 0;
+            padding: 24px;
+            background: radial-gradient(circle at top left, #0b1120 0, #020617 45%, #000 100%);
+            color: var(--text-main);
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            background: linear-gradient(145deg, rgba(15,23,42,0.96), rgba(2,6,23,0.98));
+            border-radius: 18px;
+            border: 1px solid #0f172a;
+            box-shadow: 0 40px 120px rgba(0,0,0,0.85);
+            padding: 24px 32px 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: "";
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            background:
+                radial-gradient(circle at 10% 0%, rgba(56,189,248,0.12) 0, transparent 50%),
+                radial-gradient(circle at 90% 0%, rgba(34,197,94,0.16) 0, transparent 55%);
+            mix-blend-mode: screen;
+            pointer-events: none;
+        }
+
+        .stage {
+            display: none;
+            padding: 20px 0 10px;
+            border-top: 1px solid rgba(15,23,42,0.9);
+            margin-top: 16px;
+        }
+        .stage.active {
+            display: block;
+        }
+
+        .header {
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent-strong);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header::before {
+            content: "▌";
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .subheader {
+            font-size: 13px;
+            color: var(--text-soft);
+            margin-bottom: 14px;
+        }
+
+        h2 {
+            font-size: 18px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--text-soft);
+            margin: 0 0 10px;
+        }
+
+        h3 {
+            font-size: 14px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin: 0 0 8px;
+        }
+
+        p {
+            font-size: 13px;
+            color: var(--text-soft);
+            margin: 4px 0 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(15,23,42,0.85);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            font-size: 12px;
+        }
+
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(30,64,175,0.5);
+            white-space: nowrap;
+        }
+
+        th {
+            background: radial-gradient(circle at top left, rgba(15,118,110,0.55), rgba(15,23,42,0.9));
+            font-weight: 500;
+            color: #e2e8f0;
+            border-bottom: 1px solid rgba(148,163,184,0.35);
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            font-size: 11px;
+        }
+
+        tr:nth-child(even) td {
+            background: rgba(15,23,42,0.85);
+        }
+
+        tr:hover td {
+            background: rgba(8,47,73,0.7);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 500;
+            border: 1px solid transparent;
+            font-size: 11px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            transition: all 0.18s ease-out;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: radial-gradient(circle at top left, #22c55e, #15803d);
+            color: #e5f9ee;
+            box-shadow: 0 0 0 1px #16a34a, 0 0 16px rgba(34,197,94,0.6);
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 0 1px #4ade80, 0 0 24px rgba(34,197,94,0.8);
+        }
+
+        .btn-secondary {
+            background: radial-gradient(circle at top left, #0f172a, #020617);
+            border-color: #1f2937;
+            color: #cbd5f5;
+        }
+        .btn-secondary:hover {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 1px rgba(56,189,248,0.4);
+        }
+
+        .chart-container {
+            height: 260px;
+            padding: 10px 12px 6px;
+            background: radial-gradient(circle at top right, rgba(8,47,73,0.9), rgba(15,23,42,0.98));
+            border-radius: var(--radius);
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(37,99,235,0.5);
+        }
+
+        .insight {
+            background: radial-gradient(circle at top left, rgba(21,128,61,0.18), rgba(15,23,42,0.96));
+            padding: 14px 16px;
+            border-radius: var(--radius);
+            margin: 10px 0;
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(22,163,74,0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .insight::before {
+            content: "LOG";
+            position: absolute;
+            top: 6px;
+            right: 12px;
+            font-size: 9px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(148,163,184,0.4);
+        }
+
+        .insight strong {
+            color: var(--accent-strong);
+            font-size: 12px;
+        }
+
+        .insight ul {
+            margin: 6px 0 0;
+            padding-left: 18px;
+        }
+
+        .insight li {
+            font-size: 12px;
+            color: var(--text-main);
+            margin-bottom: 3px;
+        }
+
+        input[type="file"] {
+            font-size: 11px;
+            color: var(--text-soft);
+            background: rgba(15,23,42,0.9);
+            border-radius: 999px;
+            border: 1px solid rgba(51,65,85,0.9);
+            padding: 6px 10px;
+        }
+
+        input[type="range"] {
+            width: 180px;
+            accent-color: var(--accent);
+        }
+
+        label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.13em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="header">Interactive Data Storytelling Lab</h1>
+        <p class="subheader">Transform raw user behavior data into clear insights and decisions</p>
+        
+        <!-- Stage 1: Raw Data -->
+        <div id="stage1" class="stage active">
+            <h2>Stage 1: The Raw Data Mess</h2>
+            <p>This is what user event data looks like when it first arrives. No structure. No insights. Just chaos.</p>
+            <input type="file" id="dataFile" accept=".csv" style="margin: 20px 0;">
+            <div id="rawTable"></div>
+            <button class="btn btn-primary" onclick="nextStage()">Start Analysis →</button>
+        </div>
+
+        <!-- Stage 2: Structured Data -->
+        <div id="stage2" class="stage">
+            <h2>Stage 2: Finding Patterns</h2>
+            <div id="structuredView"></div>
+            <button class="btn btn-secondary" onclick="prevStage()">← Back to Raw Data</button>
+            <button class="btn btn-primary" onclick="nextStage()">Find Insights →</button>
+        </div>
+
+        <!-- Stage 3: Insights -->
+        <div id="stage3" class="stage">
+            <h2>Stage 3: What These Patterns Mean</h2>
+            <div id="rulePanel" style="margin-bottom:12px; padding:10px 12px; border-radius:10px; background:rgba(15,23,42,0.95); border:1px solid rgba(148,163,184,0.6); font-size:11px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="letter-spacing:0.16em; text-transform:uppercase; color:#e5e7eb;">Insight rules</span>
+        <span style="color:#64748b;">Change thresholds, rerun logic</span>
+    </div>
+    <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+        <div>
+            <label for="dropThreshold">Drop alert if change ≤</label><br>
+            <input id="dropThreshold" type="number" value="-20" style="width:70px; background:#020617; color:#e5e7eb; border:1px solid #334155; border-radius:6px; padding:3px 6px; font-size:11px;"> %
+        </div>
+        <div>
+            <label for="spikeThreshold">Spike alert if change ≥</label><br>
+            <input id="spikeThreshold" type="number" value="20" style="width:70px; background:#020617; color:#e5e7eb; border:1px solid #334155; border-radius:6px; padding:3px 6px; font-size:11px;"> %
+        </div>
+        <button class="btn btn-secondary" id="rerunInsightsBtn">Re-run insight engine</button>
+    </div>
+</div>
+<div id="insights"></div>
+
+            <div id="insights"></div>
+            <button class="btn btn-secondary" onclick="prevStage()">← Back</button>
+            <button class="btn btn-primary" onclick="nextStage()">Make Decisions →</button>
+        </div>
+
+        <!-- Stage 4: Decisions -->
+        <div id="stage4" class="stage">
+            <h2>Stage 4: Test Your Decisions</h2>
+            <div id="decisions"></div>
+            <button class="btn btn-secondary" onclick="prevStage()">← Back</button>
+        </div>
+
+        <!-- Story console -->
+        <div id="storyConsole" style="
+            position:absolute;
+            top:18px;
+            right:24px;
+            width:270px;
+            padding:10px 12px;
+            border-radius:10px;
+            background:rgba(15,23,42,0.96);
+            border:1px solid rgba(34,197,94,0.55);
+            box-shadow:0 0 18px rgba(34,197,94,0.45);
+            font-size:11px;
+            color:#e5e7eb;
+            z-index:10;
+        ">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <span style="letter-spacing:0.16em;text-transform:uppercase;color:#4ade80;font-weight:500;">Story mode</span>
+                <span id="storyStepLabel" style="color:#94a3b8;">Stage 1/4</span>
+            </div>
+            <div id="storyText">
+                Loading raw event stream. We start from noise: individual clicks, sessions, and timestamps with no structure.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawData = [];
+        let currentStage = 1;
+        let chart = null;
+
+        function updateStory(stage) {
+            const label = document.getElementById('storyStepLabel');
+            const text = document.getElementById('storyText');
+            if (!label || !text) return;
+
+            if (stage === 1) {
+                label.textContent = 'Stage 1/4';
+                text.textContent = 'Loading raw event stream. We start from noise: individual clicks, sessions, and timestamps with no structure.';
+            } else if (stage === 2) {
+                label.textContent = 'Stage 2/4';
+                text.textContent = 'Events are grouped into days, users, and features. The goal here is to see stable patterns instead of isolated rows.';
+            } else if (stage === 3) {
+                label.textContent = 'Stage 3/4';
+                text.textContent = 'Now the system calls out unusual movements and weak spots, so you do not have to scan every chart by eye.';
+            } else if (stage === 4) {
+                label.textContent = 'Stage 4/4';
+                text.textContent = 'You can now play “what if” with onboarding and engagement to see how simple decisions could move the curve.';
+            }
+        }
+
+        // Stage navigation
+        function nextStage() {
+            document.getElementById(`stage${currentStage}`).classList.remove('active');
+            currentStage++;
+            document.getElementById(`stage${currentStage}`).classList.add('active');
+
+            if (currentStage === 2) initStage2();
+            if (currentStage === 3) initStage3();
+            if (currentStage === 4) initStage4();
+            updateStory(currentStage);
+        }
+
+        function prevStage() {
+            document.getElementById(`stage${currentStage}`).classList.remove('active');
+            currentStage--;
+            document.getElementById(`stage${currentStage}`).classList.add('active');
+            updateStory(currentStage);
+        }
+
+        // File upload + raw table
+        document.getElementById('dataFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const text = e.target.result;
+                    rawData = parseCSV(text);
+                    displayRawData(rawData);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
+            return lines.slice(1).map(line => {
+                const [user_id, session_id, timestamp, page_visited, time_spent_seconds] = line.split(',');
+                return { user_id, session_id, timestamp, page_visited, time_spent_seconds: parseInt(time_spent_seconds) };
+            });
+        }
+
+        function displayRawData(data) {
+            const table = document.getElementById('rawTable');
+            let html = '<table><thead><tr><th>User ID</th><th>Session</th><th>Time</th><th>Page</th><th>Time Spent</th></tr></thead><tbody>';
+            data.slice(0, 50).forEach(row => {
+                html += `<tr>
+                    <td>${row.user_id}</td>
+                    <td>${row.session_id}</td>
+                    <td>${row.timestamp}</td>
+                    <td>${row.page_visited}</td>
+                    <td>${row.time_spent_seconds}s</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            table.innerHTML = html;
+        }
+
+        // Stage 2 – structuring and chart
+        function initStage2() {
+            if (!rawData.length) {
+                document.getElementById('structuredView').innerHTML = '<p>Please upload a CSV file first.</p>';
+                return;
+            }
+
+            const dailyData = aggregateDailyData(rawData);
+            const userData = aggregateUserData(rawData);
+            const pageData = aggregatePageData(rawData);
+            
+            let html = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <h3>Daily Active Users</h3>
+                        <div class="chart-container">
+                            <canvas id="dailyChart"></canvas>
+                        </div>
+                        <p><strong>${dailyData[dailyData.length-1].active_users}</strong> users on ${dailyData[dailyData.length-1].date}</p>
+                    </div>
+                    <div>
+                        <h3>Top Pages</h3>
+                        <table style="font-size: 14px;">
+                            <thead><tr><th>Page</th><th>Total Time (min)</th><th>Visits</th></tr></thead>
+                            <tbody>
+                                ${pageData.slice(0,5).map(p => `
+                                    <tr>
+                                        <td>${p.page}</td>
+                                        <td>${p.total_time}</td>
+                                        <td>${p.visits}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <h3>User Engagement</h3>
+                    <p>Average session: <strong>${Math.round(userData.reduce((sum, u) => sum + u.avg_session, 0) / userData.length)}s</strong></p>
+                    <p>Top user ${userData[0].user} total time: <strong>${userData[0].total_time}s</strong></p>
+                </div>
+            `;
+            
+            document.getElementById('structuredView').innerHTML = html;
+            
+            const ctx = document.getElementById('dailyChart').getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dailyData.map(d => d.date),
+                    datasets: [{
+                        label: 'Active Users',
+                        data: dailyData.map(d => d.active_users),
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34,197,94,0.12)',
+                        tension: 0.4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function aggregateDailyData(data) {
+            const daily = {};
+            data.forEach(row => {
+                const date = row.timestamp.split(' ')[0];
+                if (!daily[date]) daily[date] = { users: new Set() };
+                daily[date].users.add(row.user_id);
+            });
+            return Object.entries(daily)
+                .map(([date, stats]) => ({ date, active_users: stats.users.size }))
+                .sort((a, b) => a.date.localeCompare(b.date));
+        }
+
+        function aggregateUserData(data) {
+            const users = {};
+            data.forEach(row => {
+                if (!users[row.user_id]) users[row.user_id] = { total_time: 0, sessions: new Set() };
+                users[row.user_id].total_time += row.time_spent_seconds;
+                users[row.user_id].sessions.add(row.session_id);
+            });
+            return Object.entries(users).map(([user, stats]) => ({
+                user,
+                total_time: stats.total_time,
+                avg_session: stats.total_time / stats.sessions.size
+            })).sort((a, b) => b.total_time - a.total_time);
+        }
+
+        function aggregatePageData(data) {
+            const pages = {};
+            data.forEach(row => {
+                if (!pages[row.page_visited]) pages[row.page_visited] = { total_time: 0, visits: 0 };
+                pages[row.page_visited].total_time += row.time_spent_seconds;
+                pages[row.page_visited].visits++;
+            });
+            return Object.entries(pages).map(([page, stats]) => ({
+                page,
+                total_time: Math.round(stats.total_time / 60),
+                visits: stats.visits
+            })).sort((a, b) => b.total_time - a.total_time);
+        }
+
+        // Stage 3 – executive summary + anomalies
+        function initStage3() {
+            if (!rawData.length) {
+                document.getElementById('insights').innerHTML = '<p>Please upload a CSV file first.</p>';
+                return;
+            }
+
+            const daily = aggregateDailyData(rawData);
+            const pageData = aggregatePageData(rawData);
+            const userData = aggregateUserData(rawData);
+
+            const insights = [];
+
+            for (let i = 1; i < daily.length; i++) {
+                const prev = daily[i - 1];
+                const curr = daily[i];
+                const change = ((curr.active_users - prev.active_users) / prev.active_users) * 100;
+
+                if (change <= -20) {
+                    insights.push({
+                        type: 'drop',
+                        date: curr.date,
+                        text: `Active users dropped by ${Math.round(Math.abs(change))}% on ${curr.date} compared to ${prev.date}.`
+                    });
+                } else if (change >= 20) {
+                    insights.push({
+                        type: 'spike',
+                        date: curr.date,
+                        text: `Active users increased by ${Math.round(change)}% on ${curr.date} compared to ${prev.date}.`
+                    });
+                }
+            }
+
+            const strongest = pageData[0];
+            const weakest = pageData[pageData.length - 1];
+            const firstDay = daily[0];
+            const lastDay = daily[daily.length - 1];
+            const overallChange = ((lastDay.active_users - firstDay.active_users) / firstDay.active_users) * 100;
+
+            let summaryHtml = `<div class="insight">
+                <strong>Executive summary</strong>
+                <ul style="margin-top:8px; padding-left:20px;">
+                    <li>Overall active users are ${overallChange >= 0 ? 'up' : 'down'} about ${Math.abs(Math.round(overallChange))}% over this period.</li>
+                    <li>${strongest.page} concentrates the most attention with ${strongest.total_time} minutes and ${strongest.visits} visits.</li>
+                    <li>${weakest.page} is the weakest page here and a good candidate for UX or content review.</li>
+                    <li>The most engaged user in this sample is ${userData[0].user} with ${userData[0].total_time}s of total time.</li>
+                </ul>
+            </div>`;
+
+            let anomalyHtml = '';
+            if (!insights.length) {
+                anomalyHtml += `<div class="insight"><strong>No major anomalies</strong><p>Day-to-day changes stay within a normal band. Treat this period as a baseline rather than a crisis.</p></div>`;
+            } else {
+                insights.forEach(i => {
+                    anomalyHtml += `<div class="insight">
+                        <strong>${i.type === 'drop' ? 'Negative shift detected' : 'Positive spike detected'}</strong>
+                        <p>${i.text}</p>
+                        <p>Investigate what changed around ${i.date}: releases, campaigns, outages, or UX changes.</p>
+                    </div>`;
+                });
+            }
+
+            const featureHtml = `
+                <div class="insight">
+                    <strong>Feature-level signal</strong>
+                    <p>${strongest.page} is currently carrying engagement, while ${weakest.page} underperforms.</p>
+                    <p>Consider either improving ${weakest.page} or intentionally de-emphasising it if it is not core to the product.</p>
+                </div>
+            `;
+
+            document.getElementById('insights').innerHTML = summaryHtml + anomalyHtml + featureHtml;
+        }
+
+        // Stage 4 – decision simulation
+        function initStage4() {
+            if (!rawData.length) {
+                document.getElementById('decisions').innerHTML = '<p>Please upload a CSV file first.</p>';
+                return;
+            }
+
+            const baseDaily = aggregateDailyData(rawData);
+
+            const controls = `
+                <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
+                    <div>
+                        <label>Improve onboarding (more new users)</label><br>
+                        <input type="range" id="onboardingBoost" min="0" max="50" value="10">
+                        <span id="onboardingLabel">+10%</span>
+                    </div>
+                    <div>
+                        <label>Boost feature engagement (longer sessions)</label><br>
+                        <input type="range" id="engagementBoost" min="0" max="50" value="15">
+                        <span id="engagementLabel">+15%</span>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="decisionChart"></canvas>
+                </div>
+                <p id="decisionSummary"></p>
+            `;
+
+            document.getElementById('decisions').innerHTML = controls;
+
+            const ctx = document.getElementById('decisionChart').getContext('2d');
+            const baseline = baseDaily.map(d => d.active_users);
+
+            const simChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: baseDaily.map(d => d.date),
+                    datasets: [
+                        {
+                            label: 'Baseline active users',
+                            data: baseline,
+                            borderColor: '#94a3b8',
+                            backgroundColor: 'rgba(148,163,184,0.15)',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Simulated after decisions',
+                            data: [...baseline],
+                            borderColor: '#16a34a',
+                            backgroundColor: 'rgba(22,163,74,0.15)',
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            function recalcSimulation() {
+                const onboarding = parseInt(document.getElementById('onboardingBoost').value, 10);
+                const engagement = parseInt(document.getElementById('engagementBoost').value, 10);
+
+                document.getElementById('onboardingLabel').textContent = `+${onboarding}%`;
+                document.getElementById('engagementLabel').textContent = `+${engagement}%`;
+
+                const factor = 1 + (onboarding + engagement) / 200;
+                const simulated = baseline.map(v => Math.round(v * factor));
+
+                simChart.data.datasets[1].data = simulated;
+                simChart.update();
+
+                const lastBase = baseline[baseline.length - 1];
+                const lastSim = simulated[simulated.length - 1];
+                const lift = Math.round(((lastSim - lastBase) / lastBase) * 100);
+
+                document.getElementById('decisionSummary').textContent =
+                    `If these changes work as expected, active users at the end of this period could be about ${lift}% higher than today. This is a simple what-if, not a prediction.`;
+            }
+
+            document.getElementById('onboardingBoost').addEventListener('input', recalcSimulation);
+            document.getElementById('engagementBoost').addEventListener('input', recalcSimulation);
+            recalcSimulation();
+        }
+
+        // initialize story text
+        updateStory(1);
+    </script>
+</body>
+</html>
